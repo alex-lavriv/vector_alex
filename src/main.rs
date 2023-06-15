@@ -61,7 +61,8 @@ impl<T: Default + Copy + Clone> VectorAlex<T> {
             len: 0,
             cap: 0,
             items_1: std::ptr::null_mut(),
-             phantom: std::marker::PhantomData }
+            phantom: std::marker::PhantomData,
+        }
     }
     pub fn len(&self) -> usize
     {
@@ -102,32 +103,29 @@ impl<T: Default + Copy + Clone> VectorAlex<T> {
         Default::default()
     }
     fn reallloc(&mut self) {
-        unsafe {
-            if std::ptr::null_mut() != self.items_1 {
-                let next_cap = self.cap * 2;
-                let layout = Layout::array::<T>(next_cap).unwrap();
-                self.cap = next_cap;
-                let ptr = alloc(layout);
-                if ptr.is_null() {
-                    handle_alloc_error(layout);
-                }
-                self.cap = next_cap;
-                // copy prev arr
-                for i in 0..self.len {
-                    let prev_val = Self::get_item_ptr( self.items_1 , i);
-                    Self::set_item_ptr(ptr, prev_val, i);
-                }
-                self.items_1 = ptr;
-            } else {
-                self.cap = 4;
-                let layout = Layout::array::<T>(self.cap).unwrap();
-
-                let ptr = alloc(layout);
-                if ptr.is_null() {
-                    handle_alloc_error(layout);
-                }
-                self.items_1 = ptr;
+        if std::ptr::null_mut() != self.items_1 {
+            let next_cap = self.cap * 2;
+            let layout = Layout::array::<T>(next_cap).unwrap();
+            let ptr = unsafe { alloc(layout) };
+            if ptr.is_null() {
+                handle_alloc_error(layout);
             }
+            self.cap = next_cap;
+            // copy prev arr
+            for i in 0..self.len {
+                let prev_val = Self::get_item_ptr(self.items_1, i);
+                Self::set_item_ptr(ptr, prev_val, i);
+            }
+            self.items_1 = ptr;
+        } else {
+            self.cap = 4;
+            let layout = Layout::array::<T>(self.cap).unwrap();
+
+            let ptr = unsafe { alloc(layout) };
+            if ptr.is_null() {
+                handle_alloc_error(layout);
+            }
+            self.items_1 = ptr;
         }
     }
 }
