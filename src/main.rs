@@ -88,12 +88,12 @@ impl<T: Default + Copy + Clone> VectorAlex<T> {
     }
     fn set_item_ptr(ptr: *mut u8, item: T, index: usize) {
         unsafe {
-            *(ptr.offset((index * 8) as isize) as *mut [T; 1]) = [item]
+            (ptr.offset((index * 8) as isize) as *mut T).write(item);
         };
     }
     pub fn get_item_ptr(ptr: *mut u8, index: usize) -> T {
         unsafe {
-            return (*(ptr.offset((index * 8) as isize) as *mut [T; 1]))[0].clone();
+            (ptr.offset((index * 8) as isize) as *mut T).read()
         }
     }
     pub fn get_item(&self, index: usize) -> T {
@@ -116,6 +116,7 @@ impl<T: Default + Copy + Clone> VectorAlex<T> {
                 let prev_val = Self::get_item_ptr(self.items_1, i);
                 Self::set_item_ptr(ptr, prev_val, i);
             }
+            drop(self.items_1);
             self.items_1 = ptr;
         } else {
             self.cap = 4;
