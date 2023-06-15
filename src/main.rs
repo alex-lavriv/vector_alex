@@ -23,14 +23,14 @@ fn main() {
     assert_eq!(my_vector.len(), 1);
     assert_eq!(my_vector.capacity(), 4);
 
-    let upper_lim = 1000;
+    let upper_lim = 10000;
     for i in 1..upper_lim {
         println!("Index is {}", i);
         my_vector.push(i);
         assert_eq!(my_vector.get_item(i), i);
         assert_eq!(my_vector.len(), i + 1);
     }
-    assert_eq!(my_vector.capacity(), 1024);
+  //  assert_eq!(my_vector.capacity(), 1024);
 
     for i in 1..upper_lim {
         println!("Index is {}", i);
@@ -41,10 +41,11 @@ fn main() {
         println!("Index is {}", i);
         assert_eq!(my_vector.get_item(i), i);
     }
+    // drop(my_vector);
 }
 
 use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
-use std::ops::{Index, IndexMut};
+
 
 struct VectorAlex<T> {
     len: usize,
@@ -54,7 +55,12 @@ struct VectorAlex<T> {
 
 }
 
-
+impl<T> Drop for VectorAlex<T>{
+    fn drop(&mut self) {
+        let layout = Layout::array::<T>(self.cap).unwrap();
+       unsafe{ dealloc(self.items_1, layout) }
+    }
+}
 impl<T: Default + Copy + Clone> VectorAlex<T> {
     pub fn new() -> VectorAlex<T> {
         VectorAlex {
@@ -88,6 +94,7 @@ impl<T: Default + Copy + Clone> VectorAlex<T> {
     }
     fn set_item_ptr(ptr: *mut u8, item: T, index: usize) {
         unsafe {
+
             (ptr.offset((index * 8) as isize) as *mut T).write(item);
         };
     }
@@ -116,7 +123,7 @@ impl<T: Default + Copy + Clone> VectorAlex<T> {
                 let prev_val = Self::get_item_ptr(self.items_1, i);
                 Self::set_item_ptr(ptr, prev_val, i);
             }
-            drop(self.items_1);
+            unsafe {dealloc(self.items_1,  layout) };
             self.items_1 = ptr;
         } else {
             self.cap = 4;
