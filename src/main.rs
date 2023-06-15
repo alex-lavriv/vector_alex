@@ -23,39 +23,45 @@ fn main() {
     assert_eq!(my_vector.len(), 1);
     assert_eq!(my_vector.capacity(), 4);
 
-    let upper_lim = 10;
+    let upper_lim = 1000;
     for i in 1..upper_lim {
         println!("Index is {}", i);
         my_vector.push(i);
         assert_eq!(my_vector.get_item(i), i);
         assert_eq!(my_vector.len(), i + 1);
     }
-    assert_eq!(my_vector.capacity(), 16);
+    assert_eq!(my_vector.capacity(), 1024);
 
     for i in 1..upper_lim {
         println!("Index is {}", i);
-        let value =  my_vector.get_item(i);
+        let value = my_vector.get_item(i);
         println!("value of index {} is {}", i, value);
     }
     for i in 1..upper_lim {
         println!("Index is {}", i);
         assert_eq!(my_vector.get_item(i), i);
-
     }
 }
 
 use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
+use std::ops::{Index, IndexMut};
 
 struct VectorAlex<T> {
     len: usize,
     cap: usize,
-    items_1: Option<*mut u8>,
+    items_1: *mut u8,
     phantom: std::marker::PhantomData<T>,
+
 }
+
 
 impl<T: Default + Copy + Clone> VectorAlex<T> {
     pub fn new() -> VectorAlex<T> {
-        VectorAlex { len: 0, cap: 0, items_1: None, phantom: std::marker::PhantomData }
+        VectorAlex {
+            len: 0,
+            cap: 0,
+            items_1: std::ptr::null_mut(),
+             phantom: std::marker::PhantomData }
     }
     pub fn len(&self) -> usize
     {
@@ -75,8 +81,8 @@ impl<T: Default + Copy + Clone> VectorAlex<T> {
         self.len += 1;
     }
     fn set_item(&mut self, item: T, index: usize) {
-        if let Some(items) = self.items_1 {
-            Self::set_item_ptr(items, item, index)
+        if std::ptr::null_mut() != self.items_1 {
+            Self::set_item_ptr(self.items_1, item, index)
         }
     }
     fn set_item_ptr(ptr: *mut u8, item: T, index: usize) {
@@ -86,19 +92,18 @@ impl<T: Default + Copy + Clone> VectorAlex<T> {
     }
     pub fn get_item_ptr(ptr: *mut u8, index: usize) -> T {
         unsafe {
-                return (*(ptr.offset((index * 8) as isize) as *mut [T; 1]))[0].clone();
-
+            return (*(ptr.offset((index * 8) as isize) as *mut [T; 1]))[0].clone();
         }
     }
-    pub fn get_item(&mut self, index: usize) -> T {
-            if let Some(items) = self.items_1 {
-               return Self::get_item_ptr(items, index);
-            }
-            Default::default()
+    pub fn get_item(&self, index: usize) -> T {
+        if std::ptr::null_mut() != self.items_1 {
+            return Self::get_item_ptr(self.items_1, index);
+        }
+        Default::default()
     }
     fn reallloc(&mut self) {
         unsafe {
-            if let Some(prev_items) = self.items_1 {
+            if std::ptr::null_mut() != self.items_1 {
                 let next_cap = self.cap * 2;
                 let layout = Layout::array::<T>(next_cap).unwrap();
                 self.cap = next_cap;
@@ -109,10 +114,10 @@ impl<T: Default + Copy + Clone> VectorAlex<T> {
                 self.cap = next_cap;
                 // copy prev arr
                 for i in 0..self.len {
-                    let prev_val = Self::get_item_ptr(prev_items, i);
+                    let prev_val = Self::get_item_ptr( self.items_1 , i);
                     Self::set_item_ptr(ptr, prev_val, i);
                 }
-                self.items_1 = Some(ptr);
+                self.items_1 = ptr;
             } else {
                 self.cap = 4;
                 let layout = Layout::array::<T>(self.cap).unwrap();
@@ -121,7 +126,7 @@ impl<T: Default + Copy + Clone> VectorAlex<T> {
                 if ptr.is_null() {
                     handle_alloc_error(layout);
                 }
-                self.items_1 = Some(ptr);
+                self.items_1 = ptr;
             }
         }
     }
